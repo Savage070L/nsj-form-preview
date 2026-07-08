@@ -361,6 +361,17 @@ h5.intro {
 .btn-tertiary:hover { background: rgba(71, 144, 60, 0.08); }
 .btn-block { width: 100%; }
 
+/* Иконки (инлайновые SVG) — единый масштаб, чтобы не раздувались */
+.ic { width: 1.2em; height: 1.2em; flex: 0 0 auto; display: inline-block; vertical-align: middle; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.btn .ic { width: 1.15em; height: 1.15em; }
+.wizard-nav .btn .ic { width: 1.35em; height: 1.35em; }
+.benef-card-icon .ic { width: 26px; height: 26px; }
+.benef-total-row .ic { width: 1.15em; height: 1.15em; }
+.benef-del .ic { width: 1.15em; height: 1.15em; }
+.benef-add { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.benef-add .ic { width: 1.3em; height: 1.3em; }
+
 /* ============================================================
    Дополнительные страховые покрытия
    ============================================================ */
