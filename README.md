@@ -38,13 +38,15 @@ npm run build    # сборка в dist/
 
 ## Деплой и синхронизация
 
-Пуш в ветку `main` запускает GitHub Action (`.github/workflows/deploy.yml`), который собирает
-проект (`npm ci && npm run build`) и публикует `dist/` на GitHub Pages — автоматически, за ~1–2
-минуты.
+Публикация — скриптом **`./deploy.sh`**: он собирает проект (`npm run build`) и force-пушит `dist/`
+в ветку **`gh-pages`**, которую отдаёт GitHub Pages. Обновление появляется за ~1 минуту.
 
 Это **отдельная копия** дизайна: когда меняется `TestViewMain` в основном проекте, правку
-переносят сюда (`main.js` / `Document.css`) и пушат:
+переносят сюда (`main.js` / `Document.css`), коммитят исходники в `main` и публикуют:
 
 ```bash
-git add -A && git commit -m "sync: <что изменилось>" && git push
+git add -A && git commit -m "sync: <что изменилось>" && git push   # исходники → main
+./deploy.sh                                                          # сборка → gh-pages → Pages
 ```
+
+> Ветка `main` хранит исходники; собранный сайт живёт в ветке `gh-pages` (её пересоздаёт `deploy.sh`).
