@@ -175,7 +175,9 @@ function formLayout(cols, cls) {
     const fl = document.createElement('vaadin-form-layout');
     fl.responsiveSteps = cols === 24
         ? [{ minWidth: '0', columns: 1 }, { minWidth: '40em', columns: 24 }]
-        : [{ minWidth: '0', columns: 1 }, { minWidth: '32em', columns: 2 }];
+        : cols === 1
+            ? [{ minWidth: '0', columns: 1 }]
+            : [{ minWidth: '0', columns: 1 }, { minWidth: '32em', columns: 2 }];
     if (cls) fl.classList.add(...cls.split(' '));
     return fl;
 }
@@ -722,16 +724,20 @@ function buildDiseaseAnketa(name) {
     det._body.appendChild(h('span', { class: 'anketa-intro' }, 'Заполнение данной анкеты необходимо по каждому заболеванию в отдельности. Пожалуйста, ответьте на каждый вопрос и подробно изложите все необходимые сведения.'));
     let n = 0; const num = () => (++n) + '. ';
     const SEV = ['Лёгкий дискомфорт', 'Мешает нормальной жизнедеятельности', 'Временная нетрудоспособность', 'Полная нетрудоспособность', 'Требуется госпитализация'];
-    const sufferingNow = field({ kind: 'radio', label: num() + 'Вы страдаете данным заболеванием в настоящее время?', options: O.yesno });
-    const severity = field({ kind: 'select', label: num() + 'Степень тяжести', options: SEV });
+    const sufferingNow = field({ kind: 'radio', options: O.yesno });
+    const severity = field({ kind: 'select', options: SEV });
     onFchange(sufferingNow, v => { severity.items = (v === 'Нет' ? ['Нет', ...SEV] : SEV).map(o => ({ label: o, value: o })); });
     const colLeft = h('div', { class: 'anketa-col' });
     const flL = formLayout(1);
-    [sufferingNow, field({ kind: 'textarea', label: num() + 'Когда вы почувствовали первые признаки данного заболевания?' }),
-        field({ kind: 'textarea', label: num() + 'Как часто вас беспокоит данное состояние?' }), severity,
-        field({ kind: 'textarea', label: num() + 'Опишите симптомы' }),
-        field({ kind: 'date', label: num() + 'Дата последнего обострения / когда в последний раз ощущали симптомы', placeholder: 'дд.мм.гггг' }),
-        field({ kind: 'radio', label: num() + 'Вы обращались к врачу по поводу данного состояния?', options: O.yesno })].forEach(c => flL.appendChild(c));
+    sufferingNow.label = num() + 'Вы страдаете данным заболеванием в настоящее время?';
+    flL.appendChild(sufferingNow);
+    flL.appendChild(field({ kind: 'textarea', label: num() + 'Когда вы почувствовали первые признаки данного заболевания?' }));
+    flL.appendChild(field({ kind: 'textarea', label: num() + 'Как часто вас беспокоит данное состояние?' }));
+    severity.label = num() + 'Степень тяжести';
+    flL.appendChild(severity);
+    flL.appendChild(field({ kind: 'textarea', label: num() + 'Опишите симптомы' }));
+    flL.appendChild(field({ kind: 'date', label: num() + 'Укажите дату последнего обострения / когда в последний раз ощущали симптомы', placeholder: 'дд.мм.гггг' }));
+    flL.appendChild(field({ kind: 'radio', label: num() + 'Вы обращались к врачу по поводу данного состояния?', options: O.yesno }));
     colLeft.appendChild(flL);
 
     const surgeryOffered = field({ kind: 'radio', options: O.yesno });
