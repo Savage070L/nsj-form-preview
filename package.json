@@ -1,0 +1,25 @@
+{
+  "name": "nsj-form-preview",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview" },
+  "dependencies": {
+    "@vaadin/button": "24.9.12",
+    "@vaadin/checkbox": "24.9.12",
+    "@vaadin/checkbox-group": "24.9.12",
+    "@vaadin/date-picker": "24.9.12",
+    "@vaadin/details": "24.9.12",
+    "@vaadin/email-field": "24.9.12",
+    "@vaadin/form-layout": "24.9.12",
+    "@vaadin/icon": "24.9.12",
+    "@vaadin/icons": "24.9.12",
+    "@vaadin/integer-field": "24.9.12",
+    "@vaadin/number-field": "24.9.12",
+    "@vaadin/radio-group": "24.9.12",
+    "@vaadin/select": "24.9.12",
+    "@vaadin/text-area": "24.9.12",
+    "@vaadin/text-field": "24.9.12",
+    "@vaadin/vaadin-lumo-styles": "24.9.12"
+  },
+  "devDependencies": { "vite": "^5.4.0" }
+}
