@@ -14,6 +14,7 @@ import '@vaadin/radio-group';
 import '@vaadin/checkbox';
 import '@vaadin/checkbox-group';
 import '@vaadin/details';
+import '@vaadin/dialog';
 import '@vaadin/button';
 import '@vaadin/icon';
 import '@vaadin/icons';
@@ -21,6 +22,7 @@ import '@vaadin/form-layout';
 import '@vaadin/vaadin-lumo-styles/all-imports.js';
 import './Document.css';
 import './theme-extra.css';
+import * as SENIM from './senim.js';
 
 /* ---------- DOM-хелперы ---------- */
 function h(tag, props, ...kids) {
@@ -50,6 +52,7 @@ const VICON = {
     marker: 'vaadin:map-marker', phone: 'vaadin:phone', envelope: 'vaadin:envelope-o', pie: 'vaadin:pie-chart',
     plus: 'vaadin:plus', close: 'vaadin:close', checkCircle: 'vaadin:check-circle-o', ban: 'vaadin:ban',
     arrowLeft: 'vaadin:arrow-left', arrowRight: 'vaadin:arrow-right',
+    eye: 'vaadin:eye', download: 'vaadin:download', infoCircle: 'vaadin:info-circle-o',
 };
 function icon(name) { const i = document.createElement('vaadin-icon'); i.icon = VICON[name] || name; return i; }
 function vbtn(text, { theme, iconName, cls, onClick, iconAfter } = {}) {
@@ -81,19 +84,28 @@ const O = {
     injurySums: ['500 000', '1 000 000', '1 500 000', '2 000 000'],
     coverageSums: ['1 000 000', '2 000 000', '3 000 000', '4 000 000', '5 000 000'],
     disabilityGroup: ['1', '2', '3'],
+    officialType: ['Лицо, занимающее ответственную государственную должность',
+        'Лицо, уполномоченное на выполнение государственных функций',
+        'Лицо, исполняющее управленческие функции в государственной организации',
+        'Иностранное публичное должностное лицо'],
+    premiumSource: ['Доход от бизнеса', 'Дивиденды', 'Заработная плата', 'Иное'],
+    activityType: ['Частный бизнес', 'Трудовая деятельность', 'Иное'],
 };
 const rng = (a, b, s) => { const o = []; for (let v = a; v <= b; v += s) o.push(String(v)); return o; };
 const BP_UP = rng(90, 200, 5), BP_LOW = rng(50, 140, 5);
 
 const DISEASES = ['Нарушение слуха', 'Сахарный диабет', 'ИБС (стенокардия, инфаркт миокарда), другие болезни сердца',
-    'Последствия травм', 'Болезни глаз', 'Болезни легких', 'Нет', 'Артериальная гипертония', 'Болезни почек',
-    'Нарушения мозгового кровообращения и их последствия, эпилепсия', 'Онкологические заболевания', 'Болезни печени', 'Другое'];
+    'Последствия травм', 'Ревматическая лихорадка, артриты, подагра или заболевания костей и суставов', 'Болезни глаз',
+    'Болезни легких', 'Артериальная гипертония', 'Болезни почек',
+    'Нарушения мозгового кровообращения и их последствия, эпилепсия', 'Онкологические заболевания', 'Болезни печени',
+    'Другое', 'Нет'];
 const DISEASE_ICONS = {
     'Нет': 'icon-none', 'Сахарный диабет': 'icon-diabetes', 'ИБС (стенокардия, инфаркт миокарда), другие болезни сердца': 'icon-heart',
     'Последствия травм': 'icon-trauma', 'Болезни глаз': 'icon-eyes', 'Болезни легких': 'icon-lungs',
     'Артериальная гипертония': 'icon-hypertension', 'Болезни почек': 'icon-kidneys',
     'Нарушения мозгового кровообращения и их последствия, эпилепсия': 'icon-brain', 'Болезни печени': 'icon-liver',
     'Нарушение слуха': 'icon-hearing', 'Онкологические заболевания': 'icon-oncology', 'Другое': 'icon-other',
+    'Ревматическая лихорадка, артриты, подагра или заболевания костей и суставов': 'icon-joints',
 };
 const STEP_TITLES = ['Страхователь', 'Застрахованный', 'Страховая защита', 'Выгодоприобретатели', 'Опросник'];
 const BT = {
@@ -102,6 +114,18 @@ const BT = {
     ANNUITY_END: 'Для получения аннуитетной выплаты по окончанию срока полиса',
     ANNUITY_GUARANTEED: 'Для получения аннуитетной выплаты в гарантированный период в случае смерти застрахованного по окончанию срока полиса',
     ANNUITY_ACCUM_DEATH: 'Аннуитетная выплата в случае смерти застрахованного в период накопления',
+};
+
+/* вариант выбора плиткой со значком (components/choiceTiles) */
+function tileLabel(text, iconCls) {
+    return h('label', { slot: 'label' },
+        h('div', { class: 'tile-opt' }, iconCls ? h('div', { class: 'tile-icon ' + iconCls }) : null, h('span', {}, text)));
+}
+const TILES = {
+    gender: { 'Мужской': 'tile-male', 'Женский': 'tile-female' },
+    infoChannels: { 'СМС': 'tile-sms', 'E-mail': 'tile-email', 'Почта': 'tile-letter', 'WhatsApp': 'tile-whatsapp' },
+    premiumSource: { 'Доход от бизнеса': 'tile-business', 'Дивиденды': 'tile-dividents', 'Заработная плата': 'tile-officejob', 'Иное': 'tile-other' },
+    activityType: { 'Частный бизнес': 'tile-business2', 'Трудовая деятельность': 'tile-officejob2', 'Иное': 'tile-other' },
 };
 
 /* ---------- фабрика полей (реальные компоненты Vaadin) ---------- */
@@ -113,12 +137,22 @@ function field(cfg) {
         if (cfg.label) c.label = cfg.label;
         if (cfg.helper) c.helperText = cfg.helper;
         if (cfg.required) c.required = true;
-        (cfg.options || []).forEach(o => { const b = document.createElement('vaadin-radio-button'); b.value = o; b.label = o; c.appendChild(b); });
+        (cfg.options || []).forEach(o => {
+            const b = document.createElement('vaadin-radio-button');
+            b.value = o;
+            if (cfg.tiles) b.appendChild(tileLabel(o, cfg.tiles[o])); else b.label = o;
+            c.appendChild(b);
+        });
     } else if (k === 'checkboxgroup') {
         c = document.createElement('vaadin-checkbox-group');
         if (cfg.label) c.label = cfg.label;
         if (cfg.horizontal) c.setAttribute('theme', 'horizontal');
-        (cfg.options || []).forEach(o => { const b = document.createElement('vaadin-checkbox'); b.value = o; b.label = o; c.appendChild(b); });
+        (cfg.options || []).forEach(o => {
+            const b = document.createElement('vaadin-checkbox');
+            b.value = o;
+            if (cfg.tiles) b.appendChild(tileLabel(o, cfg.tiles[o])); else b.label = o;
+            c.appendChild(b);
+        });
     } else if (k === 'checkbox') {
         c = document.createElement('vaadin-checkbox');
         if (cfg.label) c.label = cfg.label;
@@ -207,7 +241,7 @@ function identityFields(refs, opts) {
     const add = (key, cfg) => { const w = field(cfg); F[key] = w; refs[key] = w; if (cfg.id && cfg.id !== key) refs[cfg.id] = w; return w; };
     add('fio', { kind: 'text', label: 'ФИО', id: opts.fioId, prop: 'fio', col2: true, required: true, iconName: opts.icons ? 'user' : null });
     add('birthday', { kind: 'date', label: 'Дата рождения', prop: 'birthday', required: true, placeholder: 'дд.мм.гггг', iconName: opts.icons ? 'calendar' : null });
-    add('gender', { kind: 'radio', label: 'Пол', id: 'gender', prop: 'gender', required: true, options: O.gender });
+    add('gender', { kind: 'radio', label: 'Пол', id: 'gender', prop: 'gender', required: true, options: O.gender, tiles: TILES.gender, cls: 'tile-choice tile-choice-fill' });
     add('idDocument', { kind: 'select', label: 'Документ, удостоверяющий личность', id: 'idDocument', prop: 'idDocument', required: true, options: O.idDocument, placeholder: opts.icons ? 'Выберите документ' : null, iconName: opts.icons ? 'doc' : null });
     add('no', { kind: 'text', label: opts.docNoLabel || '№', prop: 'no', required: true, iconName: opts.icons ? 'hash' : null });
     add('authority', { kind: 'select', label: 'Выдан', id: 'authority', prop: 'authority', required: true, options: O.authority, placeholder: opts.icons ? 'Выберите орган выдачи' : null, iconName: opts.icons ? 'institution' : null });
@@ -215,11 +249,11 @@ function identityFields(refs, opts) {
     add('iin', { kind: 'text', label: 'ИИН', id: 'iin', prop: 'iin', hidden: !opts.icons, iconName: opts.icons ? 'card' : null });
     add('series', { kind: 'text', label: 'Серия', id: 'series', prop: 'series', hidden: true, iconName: opts.icons ? 'barcode' : null });
     add('issueDate', { kind: 'date', label: 'Дата выдачи', prop: 'issueDate', required: true, placeholder: 'дд.мм.гггг', iconName: opts.icons ? 'calendarO' : null });
-    add('kzResident', { kind: 'checkbox', label: 'Не резидент РК', id: 'kzResident', prop: 'kzResident' });
+    add('kzResident', { kind: 'checkbox', label: 'Является резидентом Республики Казахстан', id: 'kzResident', prop: 'kzResident', col2: true, cls: 'consent-toggle ico-residentkz' });
     add('citizenship', { kind: 'text', label: 'Гражданство', id: 'citizenship', prop: 'citizenship', hidden: true, iconName: opts.icons ? 'globe' : null });
     if (opts.icons) F.iin.hidden = false;
     onFchange(F.authority, v => reveal(F.authorityOther, v === 'Иное', { require: true }));
-    onFchange(F.kzResident, v => reveal(F.citizenship, v === true, {}));
+    onFchange(F.kzResident, v => reveal(F.citizenship, v === false, {}));
     onFchange(F.idDocument, v => applyIdDocument(refs, v, opts));
     return F;
 }
@@ -252,20 +286,30 @@ function buildInsurer() {
     const F = identityFields(refs, { fioId: 'insurerFio', icons: false, workplace: true });
     const extra = {};
     const add = (k, cfg) => { const w = field(cfg); extra[k] = w; refs[cfg.id || k] = w; return w; };
-    add('taxResident', { kind: 'checkbox', label: 'Налоговый резидент США', col2: true });
+    add('notUsaTaxResident', { kind: 'checkbox', id: 'notUsaTaxResident', label: 'Не является налоговым резидентом США', col2: true, cls: 'consent-toggle ico-residentusa' });
+    add('notOfficial', { kind: 'checkbox', id: 'notOfficial', label: 'Страхователь или его близкие родственники не являются публичными должностными лицами', col2: true, cls: 'consent-toggle ico-pdl' });
     add('birthplace', { kind: 'text', label: 'Юридический адрес', prop: 'birthplace', col2: true });
     add('address', { kind: 'text', label: 'Фактический адрес', prop: 'address', col2: true, required: true, helper: '(Почтовый индекс, название области, города, села, улицы, микрорайона, номер дома, квартиры)' });
-    add('isOfficial', { kind: 'radio', label: 'Является ли Застрахованный публичным должностным лицом?', id: 'isOfficial', col2: true, required: true, options: O.yesno, helper: 'Публичное должностное лицо - лицо, назначаемое или избираемое, занимающее какую-либо должность в законодательном, исполнительном, административном или судебном органе государства, а также любое лицо, выполняющее какую-либо публичную функцию для государства.' });
+    add('officialType', { kind: 'select', id: 'officialType', label: 'Категория публичного должностного лица', col2: true, hidden: true, options: O.officialType });
     add('workPlace', { kind: 'text', label: 'Место работы', id: 'workPlace', col2: true, required: true, hidden: true });
     add('position', { kind: 'text', label: 'Должность', id: 'position', col2: true, required: true, hidden: true });
     add('jobDescr', { kind: 'textarea', label: 'Точное описание служебных обязанностей', id: 'jobDescr', col2: true, required: true, hidden: true });
     add('phone', { kind: 'text', label: 'Мобильный телефон', prop: 'phone', required: true, placeholder: '+7 (___) ___-__-__' });
     add('email', { kind: 'email', label: 'E-mail', prop: 'email' });
     add('secondPhone', { kind: 'text', label: 'Дополнительные контакты', prop: 'secondPhone', placeholder: '+7 (___) ___-__-__' });
-    add('infoChannels', { kind: 'checkboxgroup', label: 'Каким образом вы желаете получать информацию от Страховщика', col2: true, horizontal: true, options: O.infoChannels });
+    add('infoChannels', { kind: 'checkboxgroup', label: 'Каким образом вы желаете получать информацию от Страховщика', col2: true, options: O.infoChannels, tiles: TILES.infoChannels, cls: 'tile-choice' });
+    add('premiumSource', { kind: 'radio', id: 'premiumSource', label: 'Источник операции по оплате страховой премии', col2: true, required: true, options: O.premiumSource, tiles: TILES.premiumSource, cls: 'tile-choice tile-choice-lg' });
+    add('premiumSourceOther', { kind: 'text', id: 'premiumSourceOther', label: 'Пожалуйста, введите ваш источник операций по оплате страховой премии', col2: true, hidden: true, placeholder: 'Укажите источник' });
+    add('activityType', { kind: 'radio', id: 'activityType', label: 'Род деятельности', col2: true, required: true, options: O.activityType, tiles: TILES.activityType, cls: 'tile-choice tile-choice-lg' });
+    add('activityTypeOther', { kind: 'text', id: 'activityTypeOther', label: 'Пожалуйста, введите ваш род деятельности', col2: true, hidden: true, placeholder: 'Укажите род деятельности' });
+    onFchange(extra.premiumSource, v => reveal(extra.premiumSourceOther, v === 'Иное', { require: true }));
+    onFchange(extra.activityType, v => reveal(extra.activityTypeOther, v === 'Иное', { require: true }));
+    onFchange(extra.notOfficial, v => reveal(extra.officialType, v === false, { require: true }));
     const g = grid(F.fio, F.birthday, F.gender, F.idDocument, F.no, F.authority, F.authorityOther, F.iin, F.series, F.issueDate,
-        F.kzResident, F.citizenship, extra.taxResident, extra.birthplace, extra.address, extra.isOfficial,
-        extra.workPlace, extra.position, extra.jobDescr, extra.phone, extra.email, extra.secondPhone, extra.infoChannels);
+        F.kzResident, F.citizenship, extra.notUsaTaxResident, extra.notOfficial, extra.officialType, extra.birthplace, extra.address,
+        extra.workPlace, extra.position, extra.jobDescr,
+        extra.premiumSource, extra.premiumSourceOther, extra.activityType, extra.activityTypeOther,
+        extra.phone, extra.email, extra.secondPhone, extra.infoChannels);
     refs.grid = g;
     det._body.appendChild(g);
     $$('[data-field]', g).forEach(c => c.addEventListener(fevent(c), onInsurerChanged));
@@ -291,10 +335,11 @@ function buildInsured() {
     const F = identityFields(refs, { fioId: 'insuredFio', icons: false, workplace: true });
     const extra = {};
     const add = (k, cfg) => { const w = field(cfg); extra[k] = w; refs[cfg.id || k] = w; return w; };
-    add('taxResident', { kind: 'checkbox', label: 'Налоговый резидент США', col2: true });
+    add('notUsaTaxResident', { kind: 'checkbox', id: 'notUsaTaxResident', label: 'Не является налоговым резидентом США', col2: true, cls: 'consent-toggle ico-residentusa' });
+    add('notOfficial', { kind: 'checkbox', id: 'notOfficial', label: 'Страхователь или его близкие родственники не являются публичными должностными лицами', col2: true, cls: 'consent-toggle ico-pdl' });
     add('birthplace', { kind: 'text', label: 'Юридический адрес', prop: 'birthplace', col2: true });
     add('address', { kind: 'text', label: 'Фактический адрес', prop: 'address', col2: true, required: true, helper: '(Почтовый индекс, название области, города, села, улицы, микрорайона, номер дома, квартиры)' });
-    add('isOfficial', { kind: 'radio', label: 'Является ли Застрахованный публичным должностным лицом?', id: 'isOfficial', col2: true, required: true, options: O.yesno, helper: 'Публичное должностное лицо - лицо, назначаемое или избираемое, занимающее какую-либо должность в законодательном, исполнительном, административном или судебном органе государства, а также любое лицо, выполняющее какую-либо публичную функцию для государства.' });
+    add('officialType', { kind: 'select', id: 'officialType', label: 'Категория публичного должностного лица', col2: true, hidden: true, options: O.officialType });
     add('workPlace', { kind: 'text', label: 'Место работы', id: 'workPlace', col2: true, required: true, hidden: true });
     add('position', { kind: 'text', label: 'Должность', id: 'position', col2: true, required: true, hidden: true });
     add('jobDescr', { kind: 'textarea', label: 'Точное описание служебных обязанностей', id: 'jobDescr', col2: true, required: true, hidden: true });
@@ -302,14 +347,15 @@ function buildInsured() {
     add('email', { kind: 'email', label: 'E-mail', prop: 'email' });
     add('secondPhone', { kind: 'text', label: 'Дополнительные контакты', prop: 'secondPhone', placeholder: '+7 (___) ___-__-__' });
     add('economicSector', { kind: 'text', label: 'Код сектора экономики', id: 'economicSector', col2: true, hidden: true });
-    add('infoChannels', { kind: 'checkboxgroup', label: 'Каким образом вы желаете получать информацию от Страховщика', col2: true, horizontal: true, options: O.infoChannels });
-    add('relationshipDegree', { kind: 'textarea', label: 'Характер взаимоотношений (степень родства) Страхователя и Застрахованного', id: 'relationshipDegree', col2: true, hidden: true });
+    add('infoChannels', { kind: 'checkboxgroup', label: 'Каким образом вы желаете получать информацию от Страховщика', col2: true, options: O.infoChannels, tiles: TILES.infoChannels, cls: 'tile-choice' });
+    add('relationshipDegree', { kind: 'select', label: 'Характер взаимоотношений Страхователя и Застрахованного (степень родства)', id: 'relationshipDegree', col2: true, hidden: true, options: RELATIONSHIP, cls: 'label-sm' });
+    onFchange(extra.notOfficial, v => reveal(extra.officialType, v === false, { require: true }));
     const addBtn = vbtn('+ Добавить дополнительного застрахованного', { theme: 'primary', onClick: addAdditionalInsured });
     addBtn.setAttribute('colspan', '2');
     refs.addBtn = addBtn;
 
     const g = grid(choice, F.fio, F.birthday, F.gender, F.idDocument, F.no, F.authority, F.authorityOther, F.iin, F.series, F.issueDate,
-        F.kzResident, F.citizenship, extra.taxResident, extra.birthplace, extra.address, extra.isOfficial,
+        F.kzResident, F.citizenship, extra.notUsaTaxResident, extra.notOfficial, extra.officialType, extra.birthplace, extra.address,
         extra.workPlace, extra.position, extra.jobDescr, extra.phone, extra.email, extra.secondPhone,
         extra.economicSector, extra.infoChannels, extra.relationshipDegree, addBtn);
     refs.grid = g;
@@ -393,224 +439,477 @@ function removeAdditionalInsured() {
 }
 
 /* ============================================================
-   Шаг 3 — Страховая защита
+   Шаг 3 — Расчёт: параметры · дополнительные покрытия · результат
    ============================================================ */
-function buildProtection() {
-    const det = sectionEl('protectionSection', 'СТРАХОВАЯ ЗАЩИТА', {});
-    const refs = R.protection;
-    const accLabel = h('span', {}, 'ПЕРИОД НАКОПЛЕНИЯ (в годах): 1');
-    accLabel.style.cssText = 'color:var(--brand-blue);font-weight:700;display:block';
-    const accSlider = h('input', { type: 'range', min: '1', max: '30', step: '1', value: '1' });
-    accSlider.style.cssText = 'width:100%;max-width:520px;accent-color:var(--brand-green);margin-top:.4rem';
-    accSlider.addEventListener('input', () => accLabel.textContent = 'ПЕРИОД НАКОПЛЕНИЯ (в годах): ' + accSlider.value);
-    const accWrap = h('div', {}, accLabel, accSlider); accWrap.setAttribute('colspan', '2');
+const COVERAGES = [
+    { id: 'accidentalDeathBenefitCb', label: '1. Смерть от НС',
+      hint: 'Выплата дополнительной страховой суммы в случае смерти Застрахованного в результате несчастного случая' },
+    { id: 'disabilityInsuranceAccidentCb', label: '2. Инвалидность от НС',
+      hint: 'Единовременная выплата 100% страховой суммы при присвоении инвалидности I группы (80% — при II группе) в результате несчастного случая' },
+    { id: 'premiumWaiverCb', label: '3. Освобождение от взносов',
+      hint: 'Освобождение от уплаты страховых взносов в случае утраты Застрахованным трудоспособности' },
+    { id: 'bodilyInjuryTablePaymentCb', label: '4. Травмы по таблице', sums: 'injury',
+      hint: 'Выплаты в соответствии с Таблицей выплат по телесным травмам в случае получения Застрахованным травмы в результате несчастного случая' },
+    { id: 'additionalBodilyInjuryTablePaymentCb', label: '5. Травмы доп. застрахованного', sums: 'injury',
+      hint: 'Выплаты в соответствии с Таблицей выплат по телесным травмам в случае получения дополнительным застрахованным травмы в результате несчастного случая' },
+    { id: 'hospitalizationDueToAccidentCb', label: '6. Госпитализация от НС', sums: 'coverage',
+      hint: 'Выплаты в случае госпитализации Застрахованного в результате несчастного случая' },
+    { id: 'temporaryDisabilityDueToAccidentCb', label: '7. Временная нетрудоспособность', sums: 'coverage',
+      hint: 'Выплаты в случае временной нетрудоспособности Застрахованного в результате несчастного случая' },
+    { id: 'criticalIllnessInsuranceCb', label: '8. Критическая болезнь', sums: 'coverage',
+      hint: 'Страхование на случай критической болезни Застрахованного' },
+];
+const FREQ_BY_LABEL = {
+    'Ежегодно': SENIM.FREQ.ANNUAL, 'Раз в полугодие': SENIM.FREQ.SEMIANNUAL,
+    'Ежеквартально': SENIM.FREQ.QUARTERLY, 'Ежемесячно': SENIM.FREQ.MONTHLY,
+    'Единовременно': SENIM.FREQ.SINGLE,
+};
+const ACC_MIN = 3, ACC_MAX = 20;
+let senimBody = null, navTotal = null, navTotalValue = null, senimTotal = null;
 
-    const premium = field({ kind: 'integer', label: 'РАЗМЕР СТРАХОВОГО ВЗНОСА (премии), в тенге', required: true });
-    const freq = field({ kind: 'select', label: 'ПЕРИОДИЧНОСТЬ ОПЛАТЫ СТРАХОВОЙ ПРЕМИИ', required: true, options: O.premiumFrequency });
-    const payments = field({ kind: 'radio', label: 'ПЕРИОД СТРАХОВЫХ ВЫПЛАТ', id: 'insurancePayments', col2: true, required: true, options: O.insurancePayments });
-    const annuityTerm = field({ kind: 'integer', label: 'Срок аннуитетных выплат', id: 'annuityTerm', hidden: true });
-    const guaranteed = field({ kind: 'integer', label: 'Гарантированный период', id: 'guaranteedPeriod', hidden: true });
-    const annuityPay = field({ kind: 'select', label: 'ПЕРИОДИЧНОСТЬ АННУИТЕТНЫХ ВЫПЛАТ', id: 'annuityPayments', hidden: true, options: O.annuityPayments });
-    const indexing = field({ kind: 'radio', label: 'ИНДЕКСАЦИЯ', id: 'indexing', col2: true, required: true, options: O.indexing });
-    refs.insurancePayments = payments;
-    onFchange(payments, v => {
-        const on = v === 'Аннуитетные выплаты';
+function yearsWord(n) {
+    const m100 = n % 100, m10 = n % 10;
+    if (m100 >= 11 && m100 <= 14) return 'лет';
+    if (m10 === 1) return 'год';
+    if (m10 >= 2 && m10 <= 4) return 'года';
+    return 'лет';
+}
+function columnHead(num, title) {
+    return h('div', { class: 'protection-col-head' },
+        h('span', { class: 'protection-col-num' }, String(num)),
+        h('span', { class: 'protection-col-title' }, title));
+}
+function buildProtection() {
+    const det = sectionEl('protectionSection', 'РАСЧЁТ', {});
+    const refs = R.protection;
+
+    /* ① параметры расчёта */
+    const params = formLayout(1);
+    const accValue = h('span', { class: 'acc-value' }, '10 лет');
+    const accHead = h('div', { class: 'acc-head' }, h('span', { class: 'acc-title' }, 'Период накопления'), accValue);
+    const accSlider = h('input', { type: 'range', class: 'acc-slider', min: String(ACC_MIN), max: String(ACC_MAX), step: '1', value: '10' });
+    accSlider.style.setProperty('--acc-fill', ((10 - ACC_MIN) * 100 / (ACC_MAX - ACC_MIN)) + '%');
+    accSlider.addEventListener('input', () => {
+        const v = +accSlider.value;
+        accValue.textContent = v + ' ' + yearsWord(v);
+        accSlider.style.setProperty('--acc-fill', ((v - ACC_MIN) * 100 / (ACC_MAX - ACC_MIN)) + '%');
+        recalcSenim();
+    });
+    refs.accumulationPeriod = accSlider;
+
+    const freq = field({ kind: 'select', id: 'premiumFrequency', label: 'Периодичность оплаты страховой премии', required: true, options: O.premiumFrequency });
+    const premium = field({ kind: 'integer', id: 'insurancePremium', label: 'Размер страхового взноса (премии), в тенге', required: true });
+    const indexing = field({ kind: 'checkbox', id: 'indexing', label: 'Индексация', cls: 'toggle-switch param-toggle' });
+    const payments = field({ kind: 'checkbox', id: 'insurancePayments', label: 'Аннуитетные выплаты', cls: 'toggle-switch param-toggle' });
+    const annuityTerm = field({ kind: 'integer', id: 'annuityTerm', label: 'Срок аннуитетных выплат', hidden: true });
+    const guaranteed = field({ kind: 'integer', id: 'guaranteedPeriod', label: 'Гарантированный период', hidden: true });
+    const annuityPay = field({ kind: 'select', id: 'annuityPayments', label: 'Периодичность аннуитетных выплат', hidden: true, options: O.annuityPayments });
+    Object.assign(refs, { premiumFrequency: freq, insurancePremium: premium, insurancePayments: payments, guaranteedPeriod: guaranteed });
+    onFchange(payments, on => {
         reveal(annuityTerm, on, { require: true }); reveal(guaranteed, on, { require: true }); reveal(annuityPay, on, { require: true });
         onPaymentPeriodChanged();
     });
-    det._body.appendChild(grid(accWrap, premium, freq, payments, annuityTerm, guaranteed, annuityPay, indexing));
+    onFchange(guaranteed, () => onPaymentPeriodChanged());
+    [freq, premium].forEach(f => onFchange(f, () => recalcSenim()));
+    [accHead, accSlider, freq, premium, indexing, payments, annuityTerm, guaranteed, annuityPay].forEach(c => params.appendChild(c));
+    const paramsCard = h('div', { class: 'protection-card protection-params' }, columnHead(1, 'Параметры расчёта'), params);
 
+    /* ② дополнительные покрытия */
     const cov = formLayout(2);
-    cov.appendChild(h('h5', { colspan: '2', class: 'mt-l mb-l' }, 'ДОПОЛНИТЕЛЬНЫЕ СТРАХОВЫЕ ПОКРЫТИЯ'));
-    const items = [
-        ['1. Выплата дополнительной страховой суммы в случае смерти Застрахованного в результате несчастного случая', null],
-        ['2. Страхование на случай утраты трудоспособности с установлением инвалидности 1, 2 группы в результате насчастного случая', { label: 'Выберите вариант', options: O.disabilityInsuranceAccident }],
-        ['3. Выплаты в соответствии с Таблицей выплат по телесным травмам в случае получения Застрахованным травмы в результате несчастного случая', { label: 'Выберите страховую сумму, тенге', options: O.injurySums }],
-        ['4. Выплаты в соответствии с Таблицей выплат по телесным травмам в случае получения Доп.Застрахованным травмы в результате несчастного случая', { label: 'Выберите страховую сумму, тенге', options: O.injurySums }],
-        ['5. Выплаты в случае госпитализации Застрахованного в результате несчастного случая', { label: 'Выберите страховую сумму, тенге', options: O.coverageSums }],
-        ['6. Выплаты в случае временной нетрудоспособности Застрахованным в результате несчастного случая', { label: 'Выберите страховую сумму, тенге', options: O.coverageSums }],
-        ['7. Страхование на случай критической болезни Застрахованного', { label: 'Выберите страховую сумму, тенге', options: O.coverageSums }],
-    ];
-    items.forEach(([label, sel]) => cov.appendChild(coverageItem(label, sel)));
-    det._body.appendChild(cov);
+    refs.coverage = {};
+    COVERAGES.forEach(c => cov.appendChild(coverageItem(c, refs)));
+    const coverageCard = h('div', { class: 'protection-card protection-coverages' }, columnHead(2, 'Дополнительные покрытия'), cov);
+
+    /* ③ предварительный результат */
+    senimBody = h('div', { class: 'calc-body' });
+    const resultCard = h('div', { class: 'protection-card protection-result' }, columnHead(3, 'Предварительный результат'), senimBody);
+    const right = h('div', { class: 'protection-right' }, resultCard);
+
+    det._body.appendChild(h('div', { class: 'protection-grid' }, paramsCard, coverageCard, right));
     return det;
 }
-function coverageItem(label, sel) {
+function coverageItem(cfg, refs) {
     const box = h('div', { class: 'coverage-box', colspan: '2' });
-    const cb = field({ kind: 'checkbox', label });
-    cb.classList.add('large-helper');
-    box.appendChild(cb);
+    const cb = field({ kind: 'checkbox', id: cfg.id, label: cfg.label, cls: 'large-helper' });
+    const hint = icon('infoCircle'); hint.classList.add('coverage-hint'); hint.title = cfg.hint;
+    box.appendChild(h('div', { class: 'coverage-head' }, cb, hint));
     let sum = null;
-    if (sel) { sum = field({ kind: 'select', label: sel.label, options: sel.options, hidden: true, cls: 'coverage-sum' }); box.appendChild(sum); }
-    cb.addEventListener('checked-changed', () => { box.classList.toggle('coverage-active', cb.checked); if (sum) reveal(sum, cb.checked, {}); });
+    if (cfg.sums) {
+        sum = field({ kind: 'select', placeholder: 'Сумма, тенге', hidden: true, cls: 'coverage-sum',
+            options: cfg.sums === 'injury' ? O.injurySums : O.coverageSums });
+        box.appendChild(sum);
+        onFchange(sum, () => recalcSenim());
+    }
+    refs.coverage[cfg.id] = { cb, sum };
+    cb.addEventListener('checked-changed', () => {
+        box.classList.toggle('coverage-active', cb.checked);
+        if (sum) reveal(sum, cb.checked, {});
+        // пункты 2 и 3 взаимоисключимы
+        if (cb.checked && cfg.id === 'disabilityInsuranceAccidentCb') refs.coverage.premiumWaiverCb.cb.checked = false;
+        if (cb.checked && cfg.id === 'premiumWaiverCb') refs.coverage.disabilityInsuranceAccidentCb.cb.checked = false;
+        recalcSenim();
+    });
     return box;
+}
+
+/* ---------- живой расчёт ---------- */
+function personForCalc() {
+    const take = refs => {
+        const b = refs.birthday ? fval(refs.birthday) : null;
+        const g = refs.gender ? fval(refs.gender) : null;
+        return b && g ? { dob: new Date(b), male: g === 'Мужской' } : null;
+    };
+    return take(R.insured) || take(R.insurer);
+}
+function money(v) {
+    const span = h('span', {});
+    SENIM.formatInt(v).split(' ').forEach((part, i) => {
+        if (i) span.appendChild(h('span', { class: 'calc-space' }, ' '));
+        span.appendChild(h('span', {}, part));
+    });
+    span.appendChild(h('span', { class: 'calc-cur' }, ' ₸'));
+    return span;
+}
+function calcAlert(info, text) {
+    senimBody.innerHTML = '';
+    senimBody.appendChild(h('div', { class: 'calc-alert ' + (info ? 'calc-alert-info' : 'calc-alert-warn') }, text));
+}
+function recalcSenim() {
+    if (!senimBody) return;
+    const refs = R.protection;
+    const premium = parseInt(fval(refs.insurancePremium), 10);
+    const frequency = FREQ_BY_LABEL[fval(refs.premiumFrequency)];
+    const term = parseInt(refs.accumulationPeriod.value, 10);
+    const person = personForCalc();
+    const missing = [];
+    if (!premium || premium <= 0) missing.push('размер страхового взноса');
+    if (!frequency) missing.push('периодичность оплаты');
+    if (!person) missing.push('дату рождения и пол застрахованного (шаг 1 или 2)');
+    if (missing.length) { calcAlert(true, 'Для предварительного расчёта укажите: ' + missing.join(', ') + '.'); storeSenim(null); return; }
+
+    const cvg = refs.coverage;
+    const group1 = cvg.accidentalDeathBenefitCb.cb.checked ? SENIM.RIDER.ACCIDENTAL_DEATH : null;
+    let group2 = null;
+    if (cvg.disabilityInsuranceAccidentCb.cb.checked) group2 = SENIM.RIDER.DISABILITY_ACCIDENT_LUMPSUM;
+    else if (cvg.premiumWaiverCb.cb.checked) group2 = SENIM.RIDER.PREMIUM_WAIVER;
+    const group3 = [];
+    const put = (id, rider) => {
+        const c = cvg[id];
+        if (!c.cb.checked || !c.sum || !c.sum.value) return;
+        group3.push([rider, parseFloat(String(c.sum.value).replace(/[^0-9]/g, ''))]);
+    };
+    put('bodilyInjuryTablePaymentCb', SENIM.RIDER.TRAUMA);
+    put('additionalBodilyInjuryTablePaymentCb', SENIM.RIDER.TRAUMA_EXTRA);
+    put('temporaryDisabilityDueToAccidentCb', SENIM.RIDER.TEMPORARY_DISABILITY);
+    put('hospitalizationDueToAccidentCb', SENIM.RIDER.HOSPITALIZATION);
+    put('criticalIllnessInsuranceCb', SENIM.RIDER.CRITICAL_ILLNESS);
+
+    const result = SENIM.calculate({ dob: person.dob, today: new Date(), male: person.male, term, frequency, premium, group1, group2, group3 });
+    if (!result.success) { calcAlert(false, result.error); storeSenim(null); return; }
+    renderSenimResult(result);
+    storeSenim(result);
+}
+function senimTile(label, value, hintText, cls) {
+    return h('div', { class: 'calc-tile ' + cls },
+        h('span', { class: 'calc-tile-label' }, label),
+        h('div', { class: 'calc-tile-value' }, money(value)),
+        h('span', { class: 'calc-tile-hint' }, hintText));
+}
+function calcRow(table, name, premium, sum) {
+    table.appendChild(h('div', { class: 'calc-cell calc-cell-name' }, name));
+    table.appendChild(h('div', { class: 'calc-cell calc-cell-num calc-cell-prem' }, money(premium)));
+    table.appendChild(sum != null
+        ? h('div', { class: 'calc-cell calc-cell-num calc-cell-sum' }, money(sum))
+        : h('div', { class: 'calc-cell calc-cell-num calc-cell-dash' }, '—'));
+}
+function renderSenimResult(result) {
+    senimBody.innerHTML = '';
+    const tiles = h('div', { class: 'calc-tiles' },
+        senimTile('Страховая сумма', Math.round(result.sumAssured), 'дожитие / уход из жизни', 'calc-tile-green'),
+        senimTile('Страховой взнос (премия)', result.totalPremium, result.frequency.periodLabel, 'calc-tile-blue'));
+    const table = h('div', { class: 'calc-table' },
+        h('div', { class: 'calc-cell calc-cell-head' }, 'Покрытие'),
+        h('div', { class: 'calc-cell calc-cell-head calc-cell-num' }, 'Премия'),
+        h('div', { class: 'calc-cell calc-cell-head calc-cell-num' }, 'Страховая сумма'));
+    calcRow(table, 'Основное покрытие — дожитие / уход из жизни', result.grossPremium, Math.round(result.sumAssured));
+    result.riders.forEach(r => calcRow(table, r.rider.title, r.premium, r.sum != null ? Math.round(r.sum) : null));
+    const total = h('div', { class: 'calc-total' },
+        h('div', { class: 'calc-total-text' },
+            h('span', { class: 'calc-total-label' }, 'Итого к оплате'),
+            h('span', { class: 'calc-total-period' }, result.frequency.periodLabel)),
+        h('span', { class: 'calc-total-value' }, money(result.totalPremium)));
+    senimBody.append(tiles, table, total,
+        h('span', { class: 'calc-note' }, 'Расчёт носит предварительный характер. Точные условия страхования определяются договором.'));
+}
+function storeSenim(result) {
+    senimTotal = result ? result.totalPremium : null;
+    updateNavTotal();
+}
+function updateNavTotal() {
+    if (!navTotal) return;
+    const show = currentStep === 2 && senimTotal != null;
+    navTotal.hidden = !show;
+    if (show) { navTotalValue.innerHTML = ''; navTotalValue.appendChild(money(senimTotal)); }
 }
 
 /* ============================================================
    Шаг 4 — Выгодоприобретатели
    ============================================================ */
+const MODE_HEIRS = 'Наследники по закону или по завещанию';
+const MODE_NAMED = 'Назначить конкретных лиц';
+const SC = { SURVIVAL: 'survival', ACCUM_DEATH: 'accum_death', GUARANTEED: 'guaranteed' };
 let beneficiaries = [];
 let benefSeq = 0;
+let benefMode = null;            // null — вариант ещё не выбран
+let benefBody = null, benefModeTiles = {};
+
+const BENEFICIARY_TERM = ['Выгодоприобретатель',
+    'Выгодоприобретатель — лицо, которое получает страховую выплату при наступлении страхового случая '
+    + 'в соответствии с договором страхования.'];
+
 function buildBeneficiary() {
     const det = sectionEl('beneficiarySection', 'ВЫГОДОПРИОБРЕТАТЕЛИ', {});
-    const mode = field({ kind: 'radio', label: 'Кто является выгодоприобретателем?', id: 'beneficiaryMode', col2: true, options: ['Законный(е) наследник(и)', 'Назначить выгодоприобретателя(ей)'] });
-    R.benefMode = mode;
-    const typeWrap = h('div', { id: 'typeBlocksContainer', class: 'hidden' });
-    const cardsWrap = h('div', { id: 'contentWrapper', class: 'hidden' });
-    R.benefTypeWrap = typeWrap; R.benefCards = cardsWrap;
-    onFchange(mode, v => {
-        beneficiaries = [];
-        typeWrap.classList.toggle('hidden', !v);
-        cardsWrap.classList.toggle('hidden', !v);
-        rebuildTypeBlocks(); renderBenefCards(); updateWizardBar();
-    });
-    det._body.appendChild(grid(mode));
-    det._body.appendChild(typeWrap);
-    det._body.appendChild(cardsWrap);
+    const wrap = h('div', { id: 'typeBlocksContainer' });
+    benefBody = h('div', { class: 'benef-body' });
+    wrap.append(benefHeader(), benefModeChoice(), benefBody);
+    det._body.appendChild(wrap);
+    rebuildBenefBody();
     return det;
 }
-function beneficiaryTypeOptions() {
-    const period = R.protection.insurancePayments ? fval(R.protection.insurancePayments) : null;
-    const mode = fval(R.benefMode);
-    let base;
-    if (period === 'Аннуитетные выплаты') base = [BT.ANNUITY_END, BT.ANNUITY_GUARANTEED, BT.ANNUITY_ACCUM_DEATH];
-    else if (period === 'Единовременно') base = [BT.LUMP_END, BT.LUMP_ACCUM_DEATH];
-    else return { types: [], noPeriod: true };
-    if (mode === 'Законный(е) наследник(и)') base = base.slice(0, 1);
-    return { types: base, noPeriod: false };
+function benefHeader() {
+    const term = h('span', { class: 'consent-term', role: 'button', tabindex: '0', onclick: () => openTermDialog(...BENEFICIARY_TERM) }, 'выгодоприобретателей');
+    return h('div', { class: 'benef-head' },
+        h('div', { class: 'benef-head-icon' }),
+        h('span', { class: 'benef-head-title' }, 'Укажите ', term, ' (получателей) страховых выплат по каждому виду выплаты'));
 }
-function benefTypeIcon(t) { return t.includes('гарантированный период') ? 'clock' : t.includes('в период накопления') ? 'heart' : 'wallet'; }
-function themeClass(i) { return ['benef-theme-green', 'benef-theme-teal', 'benef-theme-blue'][((i % 3) + 3) % 3]; }
-function rebuildTypeBlocks() {
-    const wrap = R.benefTypeWrap; if (!wrap) return;
-    wrap.innerHTML = '';
-    if (fval(R.benefMode) == null || fval(R.benefMode) === '') return;
-    const { types, noPeriod } = beneficiaryTypeOptions();
-    if (noPeriod) { wrap.appendChild(h('div', { class: 'benef-hint' }, 'Сначала выберите «ПЕРИОД СТРАХОВЫХ ВЫПЛАТ» в разделе «Страховая защита».')); return; }
-    const g = h('div', { class: 'benef-cards-grid' });
-    g.style.setProperty('--benef-cols', types.length);
-    g.style.setProperty('--benef-share-font', types.length <= 1 ? '1rem' : types.length === 2 ? '.92rem' : '.86rem');
-    types.forEach((t, i) => g.appendChild(buildTypeBlock(t, i)));
-    wrap.appendChild(g);
+function openTermDialog(title, text) {
+    const dlg = document.createElement('vaadin-dialog');
+    dlg.classList.add('term-dialog');
+    dlg.headerTitle = title;
+    dlg.headerRenderer = root => { root.textContent = ''; root.appendChild(vbtn('', { iconName: 'close', cls: 'term-dialog-close', onClick: () => { dlg.opened = false; dlg.remove(); } })); };
+    dlg.renderer = root => { root.textContent = ''; root.appendChild(h('div', { class: 'term-intro' }, h('span', {}, text))); };
+    document.body.appendChild(dlg);
+    dlg.opened = true;
 }
-function buildTypeBlock(type, index) {
-    const card = h('div', { class: 'benef-card ' + themeClass(index) });
-    const ic = h('div', { class: 'benef-card-icon' }); ic.appendChild(icon(benefTypeIcon(type)));
-    card.appendChild(ic);
-    card.appendChild(h('div', { class: 'benef-card-header' }, type));
-    const rows = h('div', { class: 'benef-card-rows' });
-    const mine = beneficiaries.filter(b => b.type === type);
-    let total = 0;
-    mine.forEach((b, n) => { total += b.payPercent || 0; rows.appendChild(buildShareRow(b, n + 1, type)); });
-    card.appendChild(rows);
-    const footer = h('div', { class: 'benef-card-footer' });
-    if (mine.length) {
-        const totalRow = h('div', { class: 'benef-total-row' }); totalRow.appendChild(icon('checkCircle'));
-        totalRow.appendChild(h('span', {}, total >= 100 ? '100% распределено' : 'осталось ' + (100 - total) + '%'));
-        footer.appendChild(totalRow);
-        const fill = h('div', { class: 'benef-progress-fill' }); fill.style.width = Math.max(0, Math.min(100, total)) + '%';
-        footer.appendChild(h('div', { class: 'benef-progress' }, fill));
-        footer.appendChild(h('div', { class: 'benef-scale' }, h('span', {}, '0%'), h('span', {}, '100%')));
-    }
-    footer.appendChild(vbtn('Добавить выгодоприобретателя', { cls: 'benef-add', iconName: 'plus', onClick: () => addBeneficiary(type) }));
-    card.appendChild(footer);
-    return card;
+function benefModeChoice() {
+    const grid = h('div', { class: 'benef-mode' });
+    benefModeTiles = {};
+    [MODE_HEIRS, MODE_NAMED].forEach(mode => {
+        const named = mode === MODE_NAMED;
+        const text = h('span', { class: 'benef-mode-text' });
+        if (named) {
+            text.append('Назначить ', h('span', { class: 'benef-strong' }, 'конкретных выгодоприобретателей (получателей)'), ' по каждому виду выплаты');
+        } else {
+            text.append('Выгодоприобретателем по окончанию срока страхования является сам ',
+                h('span', { class: 'benef-strong' }, 'Страхователь'),
+                ', а в случае смерти застрахованного — его ',
+                h('span', { class: 'benef-strong' }, 'законные наследники'), ' или ',
+                h('span', { class: 'benef-strong' }, 'по завещанию'), '.');
+        }
+        const tile = h('div', { class: 'benef-mode-opt', onclick: () => onBenefModeClick(mode) },
+            h('div', { class: 'benef-mode-icon ' + (named ? 'benef-mode-ico-named' : 'benef-mode-ico-heirs') }), text);
+        benefModeTiles[mode] = tile;
+        grid.appendChild(tile);
+    });
+    return h('div', { class: 'benef-default' }, grid);
 }
-function buildShareRow(b, number, type) {
-    const row = h('div', { class: 'benef-share-row' });
-    row.appendChild(h('span', { class: 'benef-share-name' }, 'Выгодоприобретатель №' + number));
-    const f = field({ kind: 'integer', cls: 'benef-share-field', suffix: '%', value: b.payPercent != null ? b.payPercent : '' });
-    f.placeholder = '0';
-    f.addEventListener('change', () => onShareChange(b, f, type));
-    f.addEventListener('value-changed', () => {});
-    row.appendChild(f);
-    row.appendChild(vbtn('', { theme: 'tertiary-inline', cls: 'benef-del', iconName: 'close', onClick: () => removeBeneficiary(b) }));
-    return row;
+function onBenefModeClick(mode) {
+    if (mode === benefMode) return;
+    benefMode = mode;
+    Object.entries(benefModeTiles).forEach(([k, t]) => t.classList.toggle('selected', k === mode));
+    if (mode === MODE_HEIRS) beneficiaries = [];
+    rebuildBenefBody();
+    if (mode === MODE_NAMED && beneficiaries.length === 0 && activeScenarios().length) addBeneficiary();
+    updateWizardBar();
 }
-function onShareChange(b, f, type) {
-    let v = parseInt(f.value, 10); if (isNaN(v)) v = 0; v = Math.max(0, v);
-    const others = beneficiaries.filter(x => x.type === type && x !== b).reduce((s, x) => s + (x.payPercent || 0), 0);
-    if (others + v > 100) { v = Math.max(0, 100 - others); toast('Сумма долей по этому типу выплаты не может превышать 100%'); }
-    b.payPercent = v;
-    rebuildTypeBlocks(); syncCardShares();
+function annuity() { return R.protection.insurancePayments ? fval(R.protection.insurancePayments) === true : false; }
+function hasGuaranteed() { const g = R.protection.guaranteedPeriod; const v = g ? parseInt(fval(g), 10) : NaN; return !isNaN(v) && v > 0; }
+function activeScenarios() {
+    if (!R.protection.premiumFrequency) return [];
+    return annuity()
+        ? (hasGuaranteed() ? [SC.SURVIVAL, SC.GUARANTEED, SC.ACCUM_DEATH] : [SC.SURVIVAL, SC.ACCUM_DEATH])
+        : [SC.SURVIVAL, SC.ACCUM_DEATH];
 }
-function addBeneficiary(type) { beneficiaries.push({ id: ++benefSeq, type, payPercent: null }); rebuildTypeBlocks(); renderBenefCards(); updateWizardBar(); }
-function removeBeneficiary(b) { beneficiaries = beneficiaries.filter(x => x !== b); rebuildTypeBlocks(); renderBenefCards(); updateWizardBar(); }
-function onPaymentPeriodChanged() { const { types } = beneficiaryTypeOptions(); beneficiaries = beneficiaries.filter(b => types.includes(b.type)); rebuildTypeBlocks(); renderBenefCards(); updateWizardBar(); }
-function syncCardShares() { beneficiaries.forEach(b => { if (b._share) b._share.value = b.payPercent != null ? String(b.payPercent) : ''; }); }
+function scenarioTitle(sc) {
+    if (sc === SC.SURVIVAL) return annuity() ? 'Аннуитетная выплата по окончанию срока полиса' : 'Единовременная выплата по окончанию срока полиса';
+    if (sc === SC.GUARANTEED) return 'Выплата в гарантированный период в случае смерти застрахованного';
+    return 'Выплата в случае смерти застрахованного в период накопления';
+}
+function scenarioIcon(sc) { return sc === SC.SURVIVAL ? 'wallet' : sc === SC.GUARANTEED ? 'clock' : 'heart'; }
+function scenarioTotal(sc) { return beneficiaries.reduce((sum, b) => sum + (b.shares[sc] || 0), 0); }
 
-function renderBenefCards() {
-    const wrap = R.benefCards; if (!wrap) return;
-    wrap.innerHTML = '';
-    const types = beneficiaryTypeOptions().types;
-    const counters = {};
-    beneficiaries.forEach(b => { counters[b.type] = (counters[b.type] || 0) + 1; wrap.appendChild(buildBenefCard(b, counters[b.type], types.indexOf(b.type))); });
+function rebuildBenefBody() {
+    if (!benefBody) return;
+    benefBody.innerHTML = '';
+    if (benefMode !== MODE_NAMED) return;
+    const scenarios = activeScenarios();
+    if (!scenarios.length) {
+        benefBody.appendChild(h('span', { class: 'benef-hint' }, 'Сначала выберите «Период страховых выплат» в разделе «Страховые покрытия».'));
+        return;
+    }
+    const rows = h('div', { class: 'benef-rows' });
+    beneficiaries.forEach((b, i) => rows.appendChild(buildBenefRow(b, i + 1, scenarios)));
+    benefBody.appendChild(rows);
+    const add = vbtn('Добавить выгодоприобретателя', { cls: 'add-btn', iconName: 'plus', onClick: () => addBeneficiary() });
+    add.disabled = beneficiaries.length >= 10;
+    benefBody.appendChild(add);
+    if (beneficiaries.length > 1) benefBody.appendChild(buildBenefTotals(scenarios));
     refreshPersonChoices();
 }
-function buildBenefCard(b, number, themeIndex) {
-    const det = sectionEl(null, 'Выгодоприобретатель №' + number + (b.type ? ' — ' + b.type.charAt(0).toLowerCase() + b.type.slice(1) : ''), { cardX: () => removeBeneficiary(b) });
-    det.classList.add('benef-data-card', themeClass(Math.max(0, themeIndex)));
+function buildBenefTotals(scenarios) {
+    const box = h('div', { class: 'benef-totals' }, h('span', { class: 'benef-totals-head' }, 'Распределение долей'));
+    scenarios.forEach(sc => {
+        const chip = h('div', { class: 'benef-total-icon' }); chip.appendChild(icon(scenarioIcon(sc)));
+        box.appendChild(h('div', { class: 'benef-total-row' }, chip,
+            h('span', { class: 'benef-total-title' }, scenarioTitle(sc)),
+            h('span', { class: 'benef-total-value' }, scenarioTotal(sc) + '%')));
+    });
+    return box;
+}
+function addBeneficiary() {
+    beneficiaries.push({ id: ++benefSeq, shares: {} });
+    rebuildBenefBody(); updateWizardBar();
+}
+function removeBeneficiary(b) { beneficiaries = beneficiaries.filter(x => x !== b); rebuildBenefBody(); updateWizardBar(); }
+function onPaymentPeriodChanged() { rebuildBenefBody(); updateWizardBar(); }
+
+/* строка получателя: свёрнутая сводка + форма внутри */
+function buildBenefRow(b, number, scenarios) {
+    const det = document.createElement('vaadin-details');
+    det.classList.add('benef-row');
     b._cardEl = det;
 
-    const personChoice = field({ kind: 'select', label: 'Выбрать выгодоприобретателя', colspan: 24, placeholder: 'Выберите из заполненных ранее', iconName: 'users' });
+    const name = h('span', { class: 'benef-row-name' }, 'Выгодоприобретатель №' + number);
+    const meta = h('span', { class: 'benef-row-meta' });
+    const shareVal = h('span', { class: 'benef-row-share-val' });
+    const shareBox = h('div', { class: 'benef-row-share' }, h('span', { class: 'benef-row-share-label' }, 'Доли в выплате'), shareVal);
+    const del = vbtn('', { theme: 'tertiary-inline', cls: 'benef-row-x', iconName: 'close', onClick: e => { e.stopPropagation(); removeBeneficiary(b); } });
+    const summary = document.createElement('vaadin-details-summary');
+    summary.setAttribute('slot', 'summary');
+    summary.appendChild(h('div', { class: 'benef-row-summary' },
+        h('div', { class: 'benef-row-avatar' }, h('div', { class: 'benef-row-avatar-icon' })),
+        h('div', { class: 'benef-row-main' }, name, meta), shareBox, del));
+    det.appendChild(summary);
+    b._refreshRow = () => {
+        const fio = b._fio ? (fval(b._fio) || '').trim() : '';
+        meta.textContent = fio;
+        meta.hidden = !fio;
+        const parts = scenarios.filter(sc => b.shares[sc] != null).map(sc => shortScenario(sc) + ' ' + b.shares[sc] + '%');
+        shareVal.textContent = parts.join(' · ');
+        shareBox.hidden = parts.length === 0;
+    };
+
+    const personChoice = field({ kind: 'select', label: 'Выбрать выгодоприобретателя', col2: true, placeholder: 'Выберите из заполненных ранее' });
     b._person = personChoice;
-    const share = field({ kind: 'integer', label: 'Доля в выплате', colspan: 4, readonly: true, iconName: 'pie', suffix: '%', value: b.payPercent != null ? b.payPercent : '' });
-    b._share = share;
-    const fio = field({ kind: 'text', label: 'ФИО', colspan: 20, prop: 'fio', required: true, placeholder: 'Введите ФИО', iconName: 'user' });
+    const F = {};
+    const fio = field({ kind: 'text', label: 'ФИО', col2: true, required: true, prop: 'fio' });
     b._fio = fio;
-    const birthday = field({ kind: 'date', label: 'Дата рождения', colspan: 4, required: true, placeholder: 'дд.мм.гггг', iconName: 'calendar' });
-    const gender = field({ kind: 'radio', label: 'Пол', colspan: 6, required: true, options: O.gender });
-    const idDoc = field({ kind: 'select', label: 'Документ, удостоверяющий личность', colspan: 14, required: true, options: O.idDocument, placeholder: 'Выберите документ', iconName: 'doc' });
-    const iin = field({ kind: 'text', label: 'ИИН', colspan: 12, placeholder: 'Введите ИИН', iconName: 'card' });
-    const docNo = field({ kind: 'text', label: 'Номер документа', colspan: 12, required: true, placeholder: 'Введите номер документа', iconName: 'hash' });
-    const series = field({ kind: 'text', label: 'Серия', colspan: 12, hidden: true, placeholder: 'Введите серию', iconName: 'barcode' });
-    const authority = field({ kind: 'select', label: 'Выдан', colspan: 9, required: true, options: O.authority, placeholder: 'Выберите орган выдачи', iconName: 'institution' });
-    const issueDate = field({ kind: 'date', label: 'Дата выдачи', colspan: 4, required: true, placeholder: 'дд.мм.гггг', iconName: 'calendarO' });
-    const authorityOther = field({ kind: 'text', label: 'Укажите, кем выдан', colspan: 24, hidden: true, placeholder: 'Укажите орган выдачи', iconName: 'pencil' });
-    const citizenship = field({ kind: 'text', label: 'Гражданство', colspan: 6, hidden: true, placeholder: 'Введите гражданство', iconName: 'globe' });
-    const birthplace = field({ kind: 'textarea', label: 'Юридический адрес', colspan: 12, placeholder: 'Введите адрес', iconName: 'home', helper: '(Почтовый индекс, название области, города, села, улицы, микрорайона, номер дома, квартиры)' });
-    const address = field({ kind: 'textarea', label: 'Фактический адрес', colspan: 12, required: true, placeholder: 'Введите адрес', iconName: 'marker', helper: '(Почтовый индекс, название области, города, села, улицы, микрорайона, номер дома, квартиры)' });
-    const phone = field({ kind: 'text', label: 'Мобильный телефон', colspan: 12, required: true, placeholder: '+7 (___) ___-__-__', iconName: 'phone' });
-    const email = field({ kind: 'email', label: 'E-mail', colspan: 12, placeholder: 'Введите e-mail', iconName: 'envelope' });
-
-    const kz = document.createElement('vaadin-checkbox');
-    kz.classList.add('benef-kz'); kz.setAttribute('colspan', '11'); kz.dataset.field = '1';
-    const kzIcon = h('span', { class: 'kz-icon' }); kzIcon.appendChild(icon('user')); kzIcon.appendChild(icon('ban'));
-    const kzLabel = h('span', { class: 'kz-label', slot: 'label' }, kzIcon, h('span', {}, 'Не резидент РК'));
-    kz.appendChild(kzLabel);
-
+    fio.addEventListener('value-changed', () => { b._refreshRow(); refreshPersonChoices(); });
+    const relationship = field({ kind: 'select', label: 'Степень родства', options: RELATIONSHIP, col2: true });
+    const birthday = field({ kind: 'date', label: 'Дата рождения', required: true, placeholder: 'дд.мм.гггг' });
+    const gender = field({ kind: 'radio', label: 'Пол', required: true, options: O.gender });
+    const iin = field({ kind: 'text', label: 'ИИН', required: true });
+    const idDoc = field({ kind: 'select', label: 'Тип документа', required: true, options: O.idDocument });
+    const docNo = field({ kind: 'text', label: 'Номер документа', required: true });
+    const authority = field({ kind: 'select', label: 'Кем выдан', required: true, options: O.authority });
+    const issueDate = field({ kind: 'date', label: 'Дата выдачи', required: true, placeholder: 'дд.мм.гггг' });
+    const authorityOther = field({ kind: 'text', label: 'Укажите, кем выдан', col2: true, hidden: true });
+    const address = field({ kind: 'textarea', label: 'Адрес местожительства', col2: true, required: true });
+    const phone = field({ kind: 'text', label: 'Мобильный телефон', required: true, placeholder: '+7 (___) ___-__-__' });
+    const email = field({ kind: 'email', label: 'E-mail' });
     onFchange(authority, v => reveal(authorityOther, v === 'Иное', { require: true }));
-    kz.addEventListener('checked-changed', () => { reveal(citizenship, kz.checked, {}); kz.setAttribute('colspan', kz.checked ? '5' : '11'); });
-    onFchange(idDoc, v => {
-        let iinOn, seriesOn;
-        switch (v) { case 'Загранпаспорт': iinOn = false; seriesOn = true; break; case 'Национальный паспорт': iinOn = true; seriesOn = true; break; default: iinOn = true; seriesOn = false; }
-        reveal(iin, iinOn, {}); reveal(series, seriesOn, { require: true });
-    });
-    personChoice.addEventListener('value-changed', () => applyPersonChoice(b, personChoice.value));
-    b._fio.addEventListener('value-changed', () => refreshPersonChoices());
 
-    const fl = formLayout(24, 'benef-form');
-    [personChoice, share, fio, birthday, gender, idDoc, iin, docNo, series, authority, issueDate, kz, citizenship, authorityOther, birthplace, address, phone, email].forEach(c => fl.appendChild(c));
-    det._body.appendChild(fl);
+    const minor = field({ kind: 'radio', col2: true, hidden: true, required: true,
+        label: 'Выгодоприобретатель несовершеннолетний — как выплачивать?',
+        options: ['Выплата по достижении 18 лет', 'Выплату получает опекун'] });
+    onFchange(birthday, v => {
+        const d = v ? new Date(v) : null;
+        const age = d ? (Date.now() - d.getTime()) / (365.2425 * 24 * 3600 * 1000) : null;
+        reveal(minor, age != null && age < 18, { require: true });
+    });
+
+    const dataFields = [personChoice, fio, relationship, birthday, gender, iin, idDoc, docNo, authority, issueDate, authorityOther, address, phone, email];
+    dataFields.slice(1).forEach(f => { f.hidden = true; });
+    personChoice.addEventListener('value-changed', () => {
+        const on = !!personChoice.value;
+        dataFields.slice(1).forEach(f => { if (f !== authorityOther && f !== minor) f.hidden = !on; });
+        applyPersonChoice(b, personChoice.value);
+        b._refreshRow();
+    });
+
+    const body = formLayout(2);
+    dataFields.forEach(f => body.appendChild(f));
+    body.appendChild(buildSharesBox(b, scenarios));
+    body.appendChild(minor);
+    det.appendChild(body);
+    b._refreshRow();
     return det;
 }
+const RELATIONSHIP = ['Супруг / Супруга', 'Сын / Дочь (Ребенок)', 'Отец / Мать (Родитель)', 'Брат / Сестра', 'Иное'];
+function shortScenario(sc) { return sc === SC.SURVIVAL ? 'Дожитие' : sc === SC.GUARANTEED ? 'Гарант. период' : 'Смерть'; }
+
+/* блок долей: переключатель вида выплаты + ползунок и поле под ним */
+function buildSharesBox(b, scenarios) {
+    const box = h('div', { class: 'benef-shares', colspan: '2' }, h('span', { class: 'benef-shares-head' }, 'Доли в выплате'));
+    const grid = h('div', { class: 'benef-share-grid' });
+    scenarios.forEach(sc => {
+        const toggle = document.createElement('vaadin-checkbox');
+        toggle.classList.add('toggle-switch', 'benef-share-toggle');
+        const label = h('span', { class: 'benef-share-label' }, 'Является выгодоприобретателем ' + scenarioTitle(sc).toLowerCase());
+        const slider = h('input', { type: 'range', class: 'benef-share-slider', min: '0', max: '100', step: '1', value: '100' });
+        slider.style.setProperty('--acc-fill', '100%');
+        const input = field({ kind: 'integer', cls: 'benef-share-field', suffix: '%' });
+        const control = h('div', { class: 'benef-share-row' }, slider, input);
+        control.hidden = true;
+        const sync = v => {
+            b.shares[sc] = v;
+            slider.value = String(v == null ? 0 : v);
+            slider.style.setProperty('--acc-fill', (v == null ? 0 : v) + '%');
+            b._refreshRow();
+            if (benefBody && beneficiaries.length > 1) refreshTotals();
+            updateWizardBar();
+        };
+        slider.addEventListener('input', () => { input.value = slider.value; sync(parseInt(slider.value, 10)); });
+        input.addEventListener('value-changed', () => {
+            const v = input.value === '' ? null : parseInt(input.value, 10);
+            sync(isNaN(v) ? null : v);
+        });
+        toggle.addEventListener('checked-changed', () => {
+            control.hidden = !toggle.checked;
+            if (toggle.checked) { if (!input.value || input.value === '0') input.value = '100'; sync(parseInt(input.value, 10)); }
+            else { input.value = ''; sync(null); }
+        });
+        grid.appendChild(h('div', { class: 'benef-share-col' },
+            h('div', { class: 'benef-share-toggle-item' }, toggle, label), control));
+    });
+    box.appendChild(grid);
+    return box;
+}
+function refreshTotals() {
+    const box = $('.benef-totals', benefBody); if (!box) return;
+    const scenarios = activeScenarios();
+    $$('.benef-total-value', box).forEach((el, i) => { el.textContent = scenarioTotal(scenarios[i]) + '%'; });
+}
+
+/* «Выбрать выгодоприобретателя»: страхователь · застрахованный · доп. застрахованный · другой */
 function collectPeople() {
     const people = [];
     const ins = insurerFio(); if (ins) people.push({ label: `Страхователь (${ins})`, src: '#insurerSection' });
     const insd = R.insured.fio ? (fval(R.insured.fio) || '').trim() : ''; if (insd) people.push({ label: `Застрахованный (${insd})`, src: '#insuredSection' });
-    if (additionalInsured) { const w = $('[data-prop="fio"]', additionalInsured); const f = w ? (fval(w) || '').trim() : ''; if (f) people.push({ label: `Доп. застрахованный (${f})`, srcEl: additionalInsured }); }
+    if (additionalInsured) {
+        const w = $('[data-prop="fio"]', additionalInsured);
+        const f = w ? (fval(w) || '').trim() : '';
+        if (f) people.push({ label: `Доп. застрахованный (${f})`, srcEl: additionalInsured });
+    }
     return people;
 }
 function refreshPersonChoices() {
-    if (!R.benefCards) return;
     const people = collectPeople();
     beneficiaries.forEach(b => {
         if (!b._person) return;
         const cur = b._person.value;
-        const items = [];
-        people.forEach((p, i) => items.push({ label: p.label, value: 'P' + i }));
-        beneficiaries.forEach(o => { if (o === b) return; const f = o._fio ? (fval(o._fio) || '').trim() : ''; if (f) items.push({ label: `Выгодоприобретатель (${f})`, value: 'B' + o.id }); });
-        items.push({ label: 'Выбрать другого', value: 'OTHER' });
+        const items = people.map((p, i) => ({ label: p.label, value: 'P' + i }));
+        items.push({ label: 'Другой', value: 'OTHER' });
         b._person.items = items;
         b._peopleCache = people;
         if (cur && items.some(i => i.value === cur)) b._person.value = cur;
@@ -621,7 +920,6 @@ function applyPersonChoice(b, val) {
     if (val === 'OTHER') { if (b._fio) fclear(b._fio); return; }
     let root = null;
     if (val[0] === 'P') { const p = (b._peopleCache || [])[+val.slice(1)]; if (p) root = p.srcEl || (p.src ? $(p.src) : null); }
-    else if (val[0] === 'B') { const o = beneficiaries.find(x => 'B' + x.id === val); if (o) root = o._cardEl; }
     if (root && b._fio) { const s = $('[data-prop="fio"]', root); if (s) copyVal(s, b._fio); }
     refreshPersonChoices();
 }
@@ -632,53 +930,149 @@ function applyPersonChoice(b, val) {
 function buildQuestionnaire() {
     const det = sectionEl('questionnaireSection', 'БЛАНК-ОПРОСНИК ЗАСТРАХОВАННОГО', {});
     const refs = R.quest;
-    det._body.appendChild(h('h5', { class: 'mt-l mb-l', colspan: '2' }, 'Ваши ответы на предлагаемые ниже вопросы являются основным критерием для оценки страхового риска, поэтому просим вас предоставить на них достоверные и исчерпывающие ответы, а также всю дополнительную информацию, которая могла бы повлиять на принятие решения Страховщиком'));
+    det._body.appendChild(formNote());
 
-    const height = field({ kind: 'number', label: 'Рост', required: true, helper: 'в сантиметрах' });
-    const weight = field({ kind: 'number', label: 'Вес', required: true, helper: 'в килограммах' });
-    const bpU1 = field({ kind: 'select', options: BP_UP, placeholder: 'Верхнее (SYS)' });
-    const bpL1 = field({ kind: 'select', options: BP_LOW, placeholder: 'Нижнее (DIA)' });
-    const bpU2 = field({ kind: 'select', options: BP_UP, placeholder: 'Верхнее (SYS)' });
-    const bpL2 = field({ kind: 'select', options: BP_LOW, placeholder: 'Нижнее (DIA)' });
-    const bpBlock = h('div', { colspan: '2' },
-        h('span', { class: 'bp-label mt-m', style: 'display:block' }, 'Укажите верхнее и нижнее рабочее артериальное давление'),
-        grid(bpU1, bpL1),
-        h('span', { class: 'bp-label mt-m', style: 'display:block' }, 'Укажите верхнее и нижнее максимально повышенное артериальное давление'),
-        grid(bpU2, bpL2));
-
-    const pregnant = field({ kind: 'radio', label: 'Беременны ли вы?', id: 'pregnant', required: true, hidden: true, options: O.yesno });
-    const gestational = field({ kind: 'integer', label: 'Срок беременности', id: 'gestationalAge', hidden: true });
-    const disabled = field({ kind: 'radio', label: 'Являетесь ли вы инвалидом?', id: 'disabled', required: true, options: O.yesno });
-    const disabilityGroup = field({ kind: 'select', label: 'Группа инвалидности', id: 'disabilityGroup', hidden: true, options: O.disabilityGroup });
-    refs.pregnant = pregnant; refs.gestational = gestational;
-    onFchange(pregnant, v => reveal(gestational, v === 'Да', { require: true }));
-    onFchange(disabled, v => reveal(disabilityGroup, v === 'Да', { require: true }));
+    det._body.appendChild(metricsRow(refs));
 
     const diseasesHeader = h('span', { class: 'q-label mt-m', colspan: '2', style: 'display:block' }, 'Укажите имеющиеся у вас заболевания');
     const otherDiseases = field({ kind: 'textarea', label: 'Укажите другое', id: 'otherDiseases', col2: true, hidden: true });
-    const upcomingSurgery = field({ kind: 'radio', label: 'Предстоит ли вам хирургическая операция?', id: 'upcomingSurgery', col2: true, required: true, options: O.yesno });
-    const surgeryDesc = field({ kind: 'textarea', label: 'Укажите хирургическую операцию', id: 'surgeryDescription', col2: true, hidden: true });
-    onFchange(upcomingSurgery, v => reveal(surgeryDesc, v === 'Да', { require: true }));
-    const dangerousSports = field({ kind: 'radio', label: 'Занимаетесь/собираетесь заниматься опасными видами спорта?', id: 'dangerousSports', col2: true, required: true, options: O.yesno });
-    const sportsDesc = field({ kind: 'textarea', label: 'Укажите виды', id: 'sportsDescription', col2: true, hidden: true });
-    const sportBox = h('div', { class: 'bordered-box', colspan: '2' });
-    onFchange(dangerousSports, v => { const on = v === 'Да'; reveal(sportsDesc, on, { require: true }); sportBox.classList.toggle('on', on); sportBox.innerHTML = ''; if (on) sportBox.appendChild(buildSportFragment()); });
-    const hazardous = field({ kind: 'radio', label: 'Связана ли ваша профессия с трудовой деятельностью, которую можно назвать опасной?', id: 'hazardousOccupation', col2: true, required: true, options: O.yesno });
-    const occBox = h('div', { class: 'bordered-box', colspan: '2' });
-    onFchange(hazardous, v => { const on = v === 'Да'; occBox.classList.toggle('on', on); occBox.innerHTML = ''; if (on) occBox.appendChild(buildOccupationFragment()); });
-
-    det._body.appendChild(grid(height, weight, bpBlock, pregnant, gestational, disabled, disabilityGroup));
     det._body.appendChild(diseasesHeader);
     const dGrid = h('div', { class: 'disease-grid' });
     const dAnketas = h('div', { class: 'disease-anketas' });
     buildDiseaseChecklist(dGrid, dAnketas, otherDiseases);
     det._body.appendChild(dGrid);
     det._body.appendChild(dAnketas);
-    det._body.appendChild(grid(otherDiseases, upcomingSurgery, surgeryDesc, dangerousSports, sportsDesc, sportBox, hazardous, occBox));
+    det._body.appendChild(grid(otherDiseases));
+
+    // Беременность — после заболеваний, перед вопросом об инвалидности
+    const pregnant = field({ kind: 'radio', id: 'pregnant', required: true, options: O.yesno, cls: 'qa-answer' });
+    const gestational = field({ kind: 'integer', label: 'Срок беременности', id: 'gestationalAge', col2: true, hidden: true });
+    refs.pregnant = pregnant; refs.gestational = gestational;
+    onFchange(pregnant, v => reveal(gestational, v === 'Да', { require: true }));
+    const pregnantRow = qaRow('Беременны ли вы?', 'qa-pregnant', pregnant);
+    pregnantRow.hidden = true;
+    refs.pregnantRow = pregnantRow;
+    det._body.appendChild(pregnantRow);
+    det._body.appendChild(grid(gestational));
+
+    const notDisability = field({ kind: 'checkbox', label: 'Застрахованный не является инвалидом I или II группы', col2: true, cls: 'consent-toggle' });
+    det._body.appendChild(grid(notDisability));
+
+    const disabled = field({ kind: 'radio', id: 'disabled', required: true, options: O.yesno, cls: 'qa-answer' });
+    const disabilityGroup = field({ kind: 'select', label: 'Группа инвалидности', id: 'disabilityGroup', col2: true, hidden: true, options: O.disabilityGroup });
+    onFchange(disabled, v => reveal(disabilityGroup, v === 'Да', { require: true }));
+    det._body.appendChild(qaRow('Имеется ли у Вас инвалидность?', 'qa-disability', disabled));
+    det._body.appendChild(grid(disabilityGroup));
+
+    const medications = field({ kind: 'radio', id: 'medications', required: true, options: O.yesno, cls: 'qa-answer' });
+    const medicationsList = field({ kind: 'textarea', label: 'Перечислите названия препаратов, которые Вы принимаете в настоящее время', col2: true, hidden: true });
+    onFchange(medications, v => reveal(medicationsList, v === 'Да', { require: true }));
+    det._body.appendChild(qaRow('Принимаете ли Вы медицинские препараты в настоящее время?', 'qa-drugs', medications));
+    det._body.appendChild(grid(medicationsList));
+
+    const upcomingSurgery = field({ kind: 'radio', id: 'upcomingSurgery', required: true, options: O.yesno, cls: 'qa-answer' });
+    const surgeryDesc = field({ kind: 'textarea', label: 'Укажите хирургическую операцию', id: 'surgeryDescription', col2: true, hidden: true });
+    onFchange(upcomingSurgery, v => reveal(surgeryDesc, v === 'Да', { require: true }));
+    det._body.appendChild(qaRow('Предстоит ли вам хирургическая операция?', 'qa-operation', upcomingSurgery));
+    det._body.appendChild(grid(surgeryDesc));
+
+    const dangerousSports = field({ kind: 'radio', id: 'dangerousSports', required: true, options: O.yesno, cls: 'qa-answer' });
+    const sportsDesc = field({ kind: 'textarea', label: 'Укажите виды', id: 'sportsDescription', col2: true, hidden: true });
+    const sportBox = h('div', { class: 'bordered-box', colspan: '2' });
+    onFchange(dangerousSports, v => { const on = v === 'Да'; reveal(sportsDesc, on, { require: true }); sportBox.classList.toggle('on', on); sportBox.innerHTML = ''; if (on) sportBox.appendChild(buildSportFragment()); });
+    det._body.appendChild(qaRow('Занимаетесь/собираетесь заниматься опасными видами спорта?', 'qa-sport', dangerousSports));
+    det._body.appendChild(grid(sportsDesc, sportBox));
+
+    const hazardous = field({ kind: 'radio', id: 'hazardousOccupation', required: true, options: O.yesno, cls: 'qa-answer' });
+    const occBox = h('div', { class: 'bordered-box', colspan: '2' });
+    onFchange(hazardous, v => { const on = v === 'Да'; occBox.classList.toggle('on', on); occBox.innerHTML = ''; if (on) occBox.appendChild(buildOccupationFragment()); });
+    det._body.appendChild(qaRow('Связана ли ваша профессия с трудовой деятельностью, которую можно назвать опасной?', 'qa-work', hazardous));
+    det._body.appendChild(grid(occBox));
+
     det._body.appendChild(buildAgentBlock());
     return det;
 }
-function bindPregnantToGender() { const g = R.insured.gender; if (g) onFchange(g, v => reveal(R.quest.pregnant, v === 'Женский', { require: true })); }
+
+/* примечание над опросником: ключевые обороты жирным (components/formNote) */
+const NOTE_ACCENTS = ['оценки страхового риска', 'достоверные', 'исчерпывающие ответы', 'принятие решения Страховщиком'];
+function formNote(text) {
+    const full = text || 'Ваши ответы на предлагаемые ниже вопросы являются основным критерием для оценки страхового риска, '
+        + 'поэтому просим вас предоставить на них достоверные и исчерпывающие ответы, а также всю дополнительную информацию, '
+        + 'которая могла бы повлиять на принятие решения Страховщиком';
+    const note = h('h5', { class: 'form-note', colspan: '2' });
+    let rest = full;
+    NOTE_ACCENTS.forEach(a => {
+        const at = rest.indexOf(a);
+        if (at < 0) return;
+        note.append(document.createTextNode(rest.slice(0, at)), h('span', { class: 'form-note-strong' }, a));
+        rest = rest.slice(at + a.length);
+    });
+    note.append(document.createTextNode(rest));
+    return note;
+}
+
+/* строка вопроса «Да/Нет»: текст со значком слева, ответы справа */
+function qaRow(question, iconCls, answer) {
+    return h('div', { class: 'qa-row', colspan: '2' },
+        h('span', { class: 'qa-question ' + iconCls }, question), answer);
+}
+
+/* рост · вес · давление — одной строкой карточек */
+const METRIC_GROUPS = [
+    {
+        title: 'Антропометрические данные', sub: 'Основные физические параметры',
+        cards: [
+            { cap: 'Рост', req: true, icon: 'fld-ico-height', unit: 'см', foot: 'Сантиметры', kind: 'number', key: 'height' },
+            { cap: 'Вес', req: true, icon: 'fld-ico-weight', unit: 'кг', foot: 'Килограммы', kind: 'number', key: 'weight' },
+        ],
+    },
+    {
+        title: 'Рабочее артериальное давление', sub: 'Обычные показатели давления',
+        cards: [
+            { cap: 'Верхнее (SYS)', icon: 'fld-ico-bp-up', unit: 'мм рт. ст.', foot: 'Систолическое', kind: 'bp', key: 'bpWorkUpper' },
+            { cap: 'Нижнее (DIA)', icon: 'fld-ico-bp-down', unit: 'мм рт. ст.', foot: 'Диастолическое', kind: 'bp', key: 'bpWorkLower' },
+        ],
+    },
+    {
+        title: 'Макс. артериальное давление', sub: 'Максимально повышенные показатели',
+        cards: [
+            { cap: 'Верхнее (SYS)', max: true, icon: 'fld-ico-bp-up-max', unit: 'мм рт. ст.', foot: 'Систолическое (макс.)', kind: 'bp', key: 'bpMaxUpper' },
+            { cap: 'Нижнее (DIA)', max: true, icon: 'fld-ico-bp-down-max', unit: 'мм рт. ст.', foot: 'Диастолическое (макс.)', kind: 'bp', key: 'bpMaxLower' },
+        ],
+    },
+];
+function metricsRow(refs) {
+    const row = h('div', { class: 'metrics-row', colspan: '2' });
+    METRIC_GROUPS.forEach(g => {
+        const body = h('div', { class: 'metric-group-body' });
+        g.cards.forEach(c => body.appendChild(metricCard(c, refs)));
+        row.appendChild(h('div', { class: 'metric-group' },
+            h('span', { class: 'metric-group-title' }, g.title),
+            h('span', { class: 'metric-group-sub' }, g.sub),
+            body));
+    });
+    return row;
+}
+function metricCard(cfg, refs) {
+    const input = field({ kind: cfg.kind === 'bp' ? 'text' : 'number', id: cfg.key, required: cfg.req, placeholder: '_ _ _' });
+    input.style.width = '100%';
+    if (cfg.kind === 'bp') { input.maxlength = 3; input.allowedCharPattern = '[0-9]'; }
+    input.setAttribute('aria-label', cfg.cap);
+    if (refs) refs[cfg.key] = input;
+    const cap = h('div', { class: 'metric-cap' }, h('span', { class: 'metric-cap-text' }, cfg.cap));
+    if (cfg.req) cap.appendChild(h('span', { class: 'metric-req' }, '•'));
+    if (cfg.max) cap.appendChild(h('span', { class: 'metric-badge' }, 'MAX'));
+    return h('div', { class: 'metric' }, cap,
+        h('div', { class: 'metric-pic ' + cfg.icon }),
+        input,
+        h('span', { class: 'metric-unit' }, cfg.unit),
+        h('div', { class: 'metric-foot' }, h('span', {}, cfg.foot)));
+}
+
+function bindPregnantToGender() {
+    const g = R.insured.gender;
+    if (g) onFchange(g, v => { const on = v === 'Женский'; R.quest.pregnantRow.hidden = !on; reveal(R.quest.pregnant, on, { require: true }); });
+}
 function buildAgentBlock() {
     const wrap = h('div', { id: 'agentInfoForm' });
     wrap.appendChild(h('h5', { class: 'mt-l' }, 'ИНФОРМАЦИЯ ОБ АГЕНТЕ'));
@@ -814,6 +1208,117 @@ function addAdditionalQuestionnaire() {
 function removeAdditionalQuestionnaire() { if (additionalQuestionnaire) { unregisterFromStep(4, additionalQuestionnaire); additionalQuestionnaire.remove(); additionalQuestionnaire = null; } }
 
 /* ============================================================
+   Экран ознакомления с документами (до мастера)
+   ============================================================ */
+const DOCS = [
+    {
+        key: 'kid', pages: 3, icon: 'docs-ico-kid', file: './docs/kid-nsj.pdf',
+        title: 'Ключевой информационный документ',
+        sub: 'Основная информация о продукте, условиях и возможных рисках.',
+        agree: ['Я ознакомлен и согласен с условиями ', 'Ключевого информационного документа'],
+    },
+    {
+        key: 'rules', pages: 8, icon: 'docs-ico-rules', file: './docs/pravila-strahovaniya.pdf',
+        title: 'Правила страхования',
+        sub: 'Полные условия страхования, права и обязанности сторон.',
+        agree: ['Я ознакомлен с ', 'Правилами страхования'],
+    },
+];
+const PAGE_ASPECT = '595 / 842';
+let docsGate = null, docsContinueBtn = null;
+const docAgrees = [];
+
+function docPages(doc) {
+    const box = h('div', {});
+    for (let p = 1; p <= doc.pages; p++) {
+        const img = h('img', { class: 'doc-preview-page', loading: 'lazy', src: `./docs/${doc.key}-${p}.png`, alt: `${doc.title}, страница ${p}` });
+        img.style.aspectRatio = PAGE_ASPECT;
+        box.appendChild(img);
+    }
+    return box;
+}
+function openDocDialog(doc) {
+    const dlg = document.createElement('vaadin-dialog');
+    dlg.classList.add('doc-dialog');
+    dlg.headerTitle = doc.title;
+    dlg.width = 'min(1080px, 94vw)';
+    dlg.height = '94vh';
+    dlg.headerRenderer = (root) => {
+        root.textContent = '';
+        root.appendChild(vbtn('', { iconName: 'close', cls: 'doc-dialog-close', onClick: () => { dlg.opened = false; dlg.remove(); } }));
+    };
+    dlg.renderer = (root) => {
+        root.textContent = '';
+        const pages = docPages(doc);
+        pages.classList.add('doc-dialog-pages');
+        root.appendChild(pages);
+    };
+    dlg.footerRenderer = (root) => {
+        root.textContent = '';
+        root.appendChild(h('a', { class: 'doc-action', href: doc.file, download: true }, icon('download'), h('span', {}, 'Скачать (PDF)')));
+    };
+    document.body.appendChild(dlg);
+    dlg.opened = true;
+}
+function buildDocCard(doc) {
+    const preview = docPages(doc);
+    preview.classList.add('doc-preview');
+    const download = h('a', { class: 'doc-action', href: doc.file, download: true }, icon('download'), h('span', {}, 'Скачать (PDF)'));
+    download.addEventListener('click', e => e.stopPropagation());
+    const card = h('div', { class: 'doc-card', onclick: () => openDocDialog(doc) },
+        h('div', { class: 'doc-card-head' },
+            h('div', { class: 'doc-card-icon' }, h('div', { class: `doc-ico ${doc.icon}` })),
+            h('div', { class: 'doc-card-text' },
+                h('span', { class: 'doc-card-title' }, doc.title),
+                h('span', { class: 'doc-card-sub' }, doc.sub))),
+        preview,
+        h('div', { class: 'doc-card-foot' },
+            h('span', { class: 'doc-action' }, icon('eye'), h('span', {}, 'Просмотреть документ')),
+            download));
+    // щелчок по полосе прокрутки не должен открывать окно
+    preview.addEventListener('click', e => { if (e.offsetX > preview.clientWidth) e.stopPropagation(); });
+    return card;
+}
+function buildDocAgree(doc) {
+    const link = h('a', { class: 'doc-link', href: doc.file, target: '_blank' }, doc.agree[1]);
+    link.addEventListener('click', e => e.stopPropagation());
+    const label = h('div', { class: 'doc-agree-label' }, doc.agree[0], link, '.');
+    const cb = document.createElement('vaadin-checkbox');
+    cb.classList.add('toggle-switch');
+    cb.appendChild(h('label', { slot: 'label' }, label));
+    cb.addEventListener('checked-changed', updateDocsContinue);
+    docAgrees.push(cb);
+    const ic = icon('doc'); ic.classList.add('doc-icon');
+    return h('div', { class: 'doc-agree' }, ic, cb);
+}
+function updateDocsContinue() {
+    docsContinueBtn.disabled = !docAgrees.every(cb => cb.checked);
+}
+function buildDocsGate() {
+    docsContinueBtn = vbtn('Продолжить', { theme: 'primary', iconName: 'arrowRight', iconAfter: true, onClick: acceptDocs });
+    docsContinueBtn.disabled = true;
+    docsGate = h('div', { class: 'docs-gate', id: 'docsGate' },
+        h('div', { class: 'docs-head' },
+            h('div', { class: 'docs-head-icon' }, h('div', { class: 'doc-ico docs-ico-docs' })),
+            h('div', { class: 'docs-head-text' },
+                h('span', { class: 'docs-gate-title' }, 'Ознакомление с документами'),
+                h('span', { class: 'docs-head-sub' }, 'Перед продолжением ознакомьтесь с ключевыми документами.'))),
+        h('div', { class: 'doc-cards' }, DOCS.map(buildDocCard)),
+        h('div', { class: 'docs-gate-foot' },
+            h('div', { class: 'doc-agrees' }, DOCS.map(buildDocAgree)),
+            docsContinueBtn));
+    return docsGate;
+}
+function showDocsGate(on) {
+    docsGate.classList.toggle('step-off', !on);
+    wizardBar.classList.toggle('step-off', on);
+    $('.wizard-nav').classList.toggle('step-off', on);
+    steps.forEach(secs => secs.forEach(sec => sec.classList.toggle('step-off', on)));
+    if (!on) goToStep(0);
+}
+function acceptDocs() { showDocsGate(false); }
+
+/* ============================================================
    Мастер
    ============================================================ */
 let steps = [], currentStep = 0;
@@ -829,11 +1334,14 @@ function buildWizardBar() {
     wizardBar = bar; return bar;
 }
 function buildWizardNav() {
+    navTotalValue = h('span', { class: 'nav-total-value' });
+    navTotal = h('div', { class: 'nav-total' }, h('span', { class: 'nav-total-label' }, 'Общая премия к оплате'), navTotalValue);
+    navTotal.hidden = true;
     backBtn = vbtn('Назад', { theme: 'tertiary', iconName: 'arrowLeft', onClick: () => goToStep(currentStep - 1) });
     nextBtn = vbtn('Далее', { theme: 'primary', iconName: 'arrowRight', iconAfter: true, onClick: () => goToStep(currentStep + 1) });
     signBtn = vbtn('Подтвердить', { theme: 'primary', iconName: 'checkCircle', onClick: () => toast('Демо-режим: данные никуда не отправляются') });
     stepIndicator = h('span', { class: 'wizard-progress-text' });
-    return h('div', { class: 'wizard-nav' }, backBtn, stepIndicator, h('div', { class: 'wizard-nav-right' }, nextBtn, signBtn));
+    return h('div', { class: 'wizard-nav' }, backBtn, stepIndicator, navTotal, h('div', { class: 'wizard-nav-right' }, nextBtn, signBtn));
 }
 function goToStep(index) {
     if (index < 0 || index >= steps.length) return;
@@ -845,6 +1353,7 @@ function goToStep(index) {
     nextBtn.hidden = index === steps.length - 1;
     signBtn.hidden = index !== steps.length - 1;
     stepIndicator.textContent = 'Шаг ' + (index + 1) + ' из ' + steps.length;
+    updateNavTotal();
     updateWizardBar();
     const c = $('#app'); if (c) c.scrollIntoView({ block: 'start' });
 }
@@ -862,7 +1371,10 @@ function updateWizardBar() {
 function isStepFilled(step) {
     if (!steps[step]) return false;
     if (step === 1 && (!R.insured.insuredChoice || !fval(R.insured.insuredChoice))) return false;
-    if (step === 3) { const m = fval(R.benefMode); if (!m) return false; if (beneficiaries.length === 0) return false; }
+    if (step === 3) {
+        if (!benefMode) return false;                                  // способ назначения не выбран
+        if (benefMode === MODE_NAMED && beneficiaries.length === 0) return false;
+    }
     return !steps[step].some(sec => hasEmptyRequired(sec));
 }
 function hasEmptyRequired(root) {
@@ -900,5 +1412,9 @@ function init() {
     steps = [[insurer], [insured], [protection], [beneficiary], [questionnaire]];
     bindPregnantToGender();
     goToStep(0);
+    // ознакомление с документами идёт до мастера
+    recalcSenim();
+    wizardBar.after(buildDocsGate());
+    showDocsGate(true);
 }
 init();
